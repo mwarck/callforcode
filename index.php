@@ -30,7 +30,14 @@ try {
  }
 $app->get('/', function () {
   global $app;
-    $app->render('index.html');
+    //$app->render('index.html');
+    // list all shops and datas
+    $app->contentType('application/json');
+  $shops = array();
+  if(Cloudant::Instance()->isConnected()) {
+    $shops = Cloudant::Instance()->getshops();
+  }
+  echo json_encode($shops);
 });
 
 $app->get('/api/visitors', function () {
@@ -71,5 +78,47 @@ $app->put('/api/visitors/:id', function($id) {
 	$visitor = json_decode($app->request()->getBody(), true);
     echo json_encode(Cloudant::Instance()->put($id, $visitor));
 });
+/**
+ * OWNS ROUTES
+ */
+$app->get('/api/shop/:shop_own', function($id) {
+  global $app;
+  $app->contentType('application/json');
+  $visitors = array();
+  if(Cloudant::Instance()->isConnected()) {
+    $visitors = Cloudant::Instance()->getashop($id);
+  }
+  echo json_encode($visitors);
+});
+/**
+ * POST
+ */
+$app->post('/api/shop', function() {
+  global $app;
+    error_log("POST in /api/shop");
+  $app->contentType('application/json');
+  $shop = $app->request()->getBody();
+  #$visitor = json_decode($app->request()->getBody(), true);
+  if(Cloudant::Instance()->isConnected()) {
+    $doc = Cloudant::Instance()->post($shop);
+    error_log("POST error: $shop $doc");
+    echo $doc;
+    #echo json_encode($doc);
+  } else {
+    error_log("POST error: $shop");
+    echo json_encode($shop);
+  }
+});
+
+/***
+ * PUT TEST
+ */
+
+$app->put('/api/shop/status/:id', function($id) {
+	global $app;
+	$shop = json_decode($app->request()->getBody(), true);
+    echo json_encode(Cloudant::Instance()->putStatus($id, $shop));
+});
+
 
 $app->run();

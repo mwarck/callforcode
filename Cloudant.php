@@ -70,7 +70,7 @@ final class Cloudant {
 		$dbsession = $this->sag->login($username, $password);
 	  $this->db_exists = true;
 	try {
-			$this->sag->setDatabase('mydb', true);
+			$this->sag->setDatabase("mydb", true);
 	
 	} catch (Exception $e) {
                 error_log("Error creating DB $e ");
@@ -97,11 +97,20 @@ final class Cloudant {
 	 * Creates a view to use in the DB if one does not already exist.
 	 */
 	private function createView() {
-		$allvisitors = array('reduce' => '_count',
-		'map' => 'function(doc){if(doc.name != null){emit(doc.order,{name: doc.name})}}');
-		$views = array('allvisitors' => $allvisitors);
+		$allshops = array('reduce' => '_count',
+		'map' => 'function(doc){if(doc.shop_name != null){
+			emit(doc.order,{
+				shop_own: doc.shop_own,
+				shop_name: doc.shop_name,
+				shop_cat: doc.shop_cat,
+				shop_desc: doc.shop_desc,
+				shop_location: doc.shop_location,
+				shop_status: doc.shop_status
+			})}}');
+		$views = array('allshops' => $allshops
+					);
 		$designDoc = array('views' => $views);
-		$this->sag->put('_design/visitors', $designDoc);
+		$this->sag->put('_design/shops', $designDoc);
 	}
 
 	/**
@@ -150,5 +159,79 @@ final class Cloudant {
 	public function delete($id) {
 		$rev = $this->sag->get($id)->body->_rev;
 		$this->sag->delete($id, $rev);
+	}
+
+	/**
+	 * My first api with IBM ADDs
+	 * MArco
+	 */
+	/**
+	 * Gets all visitors from the DB.
+	 */
+	public function getshops() {
+		$shops = array();
+		$obj = $this->sag->get('_design/shops/_view/allshops?reduce=false')->body;
+		#error_log("OBJ is $obj->body");
+		$docs = json_decode($obj);
+		foreach ($docs->rows as $row) {
+			// bring all data here 
+			$shops[]=array(
+				//'shop_own'=>$row->value->shop_own,
+				'name'=>$row->value->shop_name,
+				'category'=>$row->value->shop_cat,
+				'description' => $row->value->shop_desc,
+				'location'	=>$row->value->shop_location,
+				'status'	=>$row->value->shop_status
+			) ;;
+		}
+		return $shops;
+	}
+	/**
+	 * This gest one shop by id
+	 */
+	public function getashop($id) {
+		$shops = array();
+		$obj = $this->sag->get('_design/get_a_shop/_search/serachShop?q=shop_own:'.$id)->body;
+		#error_log("OBJ is $obj->body");
+		$docs = json_decode($obj);
+		foreach ($docs->rows as $row) {
+		$shops = $row->id;
+		}
+		return $shops	;
+	}
+	/**
+	 * POST SHOPS
+	 * Correct post format
+     * {"shop_name":"verduras juanita",
+	 * "shop_cat":"frutas y verduras",
+	 * "shop_desc":"Loremi ipsum",
+	 * "shop_location":"19.296727, -99.137933",
+	 * "shop_status":"close",
+	 * "shop_user_id":"12893s"}
+	 */
+	public function postshop($shop) {
+		#                $this->sag->decode(true);
+				$resp = $this->sag->post($shop);
+		#                $this->sag->decode(false);
+		# error_log("$resp $resp->body[0]\n");
+				#$visitor['id'] = $resp->body->id;
+						# Why can't we get at the ID here?
+				return $shop;
+	}
+
+	/**
+	 * PUT
+	 */
+
+	public function putStatus($id, $visitor) {
+		
+		$couchTodo = $this->sag->get($id)->body;
+		$obj = json_decode($couchTodo,true);
+    	$obj['shop_status'] = $visitor['status'];
+    	$this->sag->put($id, $obj);
+    	$obj['id'] = $id;
+    	unset($couchTodo->_id);
+    	unset($couchTodo->_rev);
+    	return $couchTodo;
 	}
 }
